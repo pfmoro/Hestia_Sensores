@@ -28,4 +28,4 @@ last_known_ip.txt
 .streamlit/
 
 # Exclui arquivos de debug
-.ipynb
+*.ipynb
