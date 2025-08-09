@@ -1,4 +1,4 @@
-# Projeto de Monitoramento de Plantas e Ambientes
+# Héstia - Monitoramento Doméstico de Plantas e Ambientes
 
 Este projeto de software e hardware é um sistema de monitoramento para plantas e ambientes. Utilizando duas placas **NodeMCU ESP8266**, ele coleta dados de diversos sensores e os envia para um backend centralizado em Python. Os dados são então visualizados em tempo real através de uma interface web com Streamlit e armazenados em serviços de nuvem como ThingSpeak e Google Drive.
 
