@@ -1,0 +1,31 @@
+﻿# Exclui o diretório do ambiente virtual
+.venv/
+venv/
+
+
+# Exclui arquivos de ambiente com dados sensíveis
+.env
+
+
+# Exclui caches do Python
+__pycache__/
+*.pyc
+
+
+# Exclui arquivos de log e dados gerados
+*.log
+*.tmp
+dados_completos.json
+last_known_ip.txt
+
+
+# Exclui pastas de IDEs
+.idea/
+.vscode/
+
+
+# Exclui arquivos específicos do Streamlit
+.streamlit/
+
+# Exclui arquivos de debug
+.ipynb
