@@ -130,6 +130,7 @@ O projeto é organizado da seguinte forma:
       * `ip_finder.py`: Responsável por descobrir o endereço IP das NodeMCUs na rede local, usando seus endereços MAC.
       * `upload_service.py`: Lida com o salvamento de dados localmente e o envio para serviços de nuvem como ThingSpeak.
       * `streamlit_app.py`: O frontend da aplicação, que lê o arquivo de dados local para visualização.
+      * **`utils.py`**: Este novo arquivo centraliza todas as funções auxiliares e cálculos matemáticos utilizados pelo `streamlit_app.py`, como o cálculo das horas sideral e solar real e a obtenção do meridiano de fuso. A separação dessas funções torna o código principal mais limpo, fácil de ler e reutilizável em outras partes do projeto ou em outras aplicações.
   * **`nodemcu_1/`**: Contém o código Arduino (`.ino`) para a NodeMCU \#1.
   * **`nodemcu_2/`**: Contém os códigos Arduino (`.ino`) para a NodeMCU \#2, com opções para o modo **`plugged`** e **`battery`**.
 

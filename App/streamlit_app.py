@@ -4,43 +4,10 @@ import os
 import datetime
 import requests
 import pytz
+import math
+# Importa as funções auxiliares do novo arquivo
+from utils import get_geolocation, obter_meridiano_fuso_local, get_sideral_time, calcular_hora_solar_local
 
-
-# --- Funções Auxiliares ---
-
-
-def get_geolocation():
-    """
-    Obtém a latitude e longitude da rede atual usando a API ip-api.com.
-    """
-    try:
-        response = requests.get("http://ip-api.com/json")
-        response.raise_for_status()
-        data = response.json()
-        if data['status'] == 'success':
-            return data['lat'], data['lon']
-        else:
-            return None, None
-    except requests.exceptions.RequestException:
-        return None, None
-
-
-def get_sideral_time(longitude):
-    """
-    Calcula a Hora Sideral Local (LST) a partir da hora e longitude.
-    """
-    now = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
-    
-    # 1. Calcular a data Juliana
-    jd = now.toordinal() + 1721424.5 + now.hour/24 + now.minute/1440 + now.second/86400
-    
-    # 2. Calcular a Hora Sideral Média de Greenwich (GMST) em horas
-    gmst_hours = (6.697374558 + 0.06570982441908 * (jd - 2451545.0) + now.hour + now.minute/60 + now.second/3600) % 24
-    
-    # 3. Calcular a Hora Sideral Local (LST)
-    lst_hours = (gmst_hours + longitude / 15) % 24
-    
-    return lst_hours
 
 
 # --- Lógica Principal do Streamlit ---
@@ -74,6 +41,7 @@ def main():
         sideral_time_m = int((sideral_hours - sideral_time_h) * 60)
         sideral_time_s = int(((sideral_hours - sideral_time_h) * 60 - sideral_time_m) * 60)
         sideral_time = f"{sideral_time_h:02d}:{sideral_time_m:02d}:{sideral_time_s:02d}"
+        hora_solar = calcular_hora_solar_local(lon)
 
 
     # 3. Exibir os dados
@@ -95,7 +63,8 @@ def main():
     st.markdown("---")
     st.subheader("Metadados")
     st.write(f"**Última Atualização:** {last_updated_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    st.write(f"**Hora Local:** {local_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    st.write(f"**Hora Local Oficial:** {local_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    st.write(f"**Hora Solar Local Real:** {hora_solar.strftime('%Y-%m-%d %H:%M:%S')}")
     st.write(f"**Hora Sideral Local:** {sideral_time}")
     st.write(f"**Latitude:** {lat}")
     st.write(f"**Longitude:** {lon}")
