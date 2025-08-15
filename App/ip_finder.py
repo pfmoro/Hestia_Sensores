@@ -1,140 +1,75 @@
 ﻿import subprocess
-import pandas as pd
 import re
-import platform
-import json
+import socket
+import sys
 import requests
-import os
 
+def get_ip_from_mac(mac_address):
+    """
+    Tenta encontrar o IP de um dispositivo a partir do seu endereço MAC.
+    Primeiro, tenta buscar na tabela ARP do sistema. Se falhar, faz uma busca
+    por faixa de IPs comuns para encontrar a NodeMCU.
+    """
+    print(f"Tentando encontrar o IP para o MAC: {mac_address}...")
 
-# --- Lógica de Persistência do IP ---
+    # Tenta o método padrão de busca na tabela ARP
+    ip_encontrado = _find_ip_from_arp(mac_address)
+    
+    if ip_encontrado:
+        print(f"IP encontrado via tabela ARP: {ip_encontrado}")
+        return ip_encontrado
+    
+    print("Falha ao encontrar IP na tabela ARP. Tentando busca por faixa de IPs...")
+    
+    # Se o método ARP falhar, tenta o fallback com a faixa de IPs
+    ip_encontrado_fallback = _find_ip_by_range(mac_address)
 
-
-def _save_last_known_ip(ip, filename="last_known_ip.txt"):
-    """Salva o IP mais recente em um arquivo para uso futuro."""
-    with open(filename, "w") as f:
-        f.write(ip)
-    print(f"IP descoberto ({ip}) salvo para a próxima iteração.")
-
-
-def _load_last_known_ip(filename="last_known_ip.txt"):
-    """Lê o último IP salvo no arquivo, se existir."""
-    if os.path.exists(filename):
-        with open(filename, "r") as f:
-            return f.read().strip()
+    if ip_encontrado_fallback:
+        print(f"IP encontrado via busca por faixa de IPs: {ip_encontrado_fallback}")
+        return ip_encontrado_fallback
+    
+    print(f"Não foi possível encontrar o IP para o MAC {mac_address}.")
     return None
 
-
-# --- Lógica de Validação e Chamada HTTP ---
-
-
-def _validate_and_test_ip(ip, expected_schema):
+def _find_ip_from_arp(mac_address):
     """
-    Faz uma chamada HTTP para o IP e valida a resposta com o schema esperado.
-    Retorna True se a resposta for válida, False caso contrário.
+    Busca o IP na tabela ARP do sistema. Pode falhar em sistemas sem acesso root.
     """
     try:
-        response = requests.get(f"http://{ip}/", timeout=5)
-        response.raise_for_status()  # Lança um erro para status de erro HTTP
-        data = response.json()
+        if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+            # Comando para Linux e macOS
+            output = subprocess.check_output(['arp', '-a'], timeout=5).decode('utf-8')
+        elif sys.platform.startswith('win'):
+            # Comando para Windows
+            output = subprocess.check_output(['arp', '-a'], timeout=5).decode('utf-8')
+        else:
+            return None # Não suportado
         
-        # Valida se todas as chaves esperadas estão no JSON
-        for key in expected_schema:
-            if key not in data:
-                print(f"Erro: Chave '{key}' não encontrada no JSON de {ip}.")
-                return False
+        lines = output.splitlines()
+        for line in lines:
+            if mac_address.lower() in line.lower():
+                ip_match = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', line)
+                if ip_match:
+                    return ip_match.group(1)
+        return None
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+def _find_ip_by_range(mac_address):
+    """
+    Faz uma busca de força bruta em uma faixa de IPs comuns para encontrar o MAC.
+    """
+    # Apenas como exemplo. O ideal é que o endereço da NodeMCU seja um valor fixo.
+    base_ip = "192.168.0."
+    for i in range(200, 300):
+        ip = base_ip + str(i)
         
-        print(f"Sucesso: IP {ip} respondeu com o schema esperado.")
-        return True
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Erro de conexão com {ip}: {e}")
-        return False
-    except ValueError as e:
-        print(f"Erro de parsing JSON em {ip}: {e}")
-        return False
-
-
-# --- Lógica de Tabela ARP ---
-
-
-def get_arp_table():
-    """
-    Executa o comando 'arp -a' e retorna um DataFrame com as colunas
-    IP Address, MAC Address e Type. Funciona no Windows e Linux.
-    """
-    system = platform.system().lower()
-    
-    try:
-        command = ["arp", "-a"]
-        result = subprocess.run(command, capture_output=True, text=True)
-        output = result.stdout
-    except Exception as e:
-        raise RuntimeError(f"Erro ao executar 'arp -a': {e}")
-    
-    data = []
-    
-    if "windows" in system:
-        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F-]{17})\s+(\w+)")
-    else:
-        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+[\w]+\s+([0-9a-fA-F:]{17})\s+")
-    
-    for line in output.splitlines():
-        match = pattern.search(line)
-        if match:
-            ip = match.group(1)
-            mac = match.group(2).replace('-', ':')  # Normaliza para o formato do Linux
-            data.append((ip, mac, None))
-    
-    df = pd.DataFrame(data, columns=["IP Address", "MAC Address", "Type"])
-    return df
-
-
-def _get_all_ips_from_mac(mac_address):
-    """
-    Recebe um MAC Address, consulta a tabela ARP e retorna uma lista
-    de todos os IPs correspondentes, ou uma lista vazia se não encontrar.
-    """
-    df = get_arp_table()
-    
-    # Normaliza o formato do MAC (maiúsculas) para a busca
-    mac_address = mac_address.upper().replace('-', ':')
-    df["MAC Address"] = df["MAC Address"].str.upper().str.replace('-', ':')
-    
-    matches = df[df["MAC Address"] == mac_address]
-    
-    if not matches.empty:
-        return matches["IP Address"].tolist()
-    else:
-        return []
-
-
-# --- Função Principal de Descoberta ---
-
-
-def find_nodemcu1_ip(mac_address, expected_schema):
-    """
-    Função principal que busca o IP da NodeMCU #1.
-    Prioriza o último IP conhecido e, se falhar, testa todos os outros IPs.
-    """
-    print(f"Iniciando busca pelo IP da NodeMCU #1 (MAC: {mac_address})...")
-    
-    # Carrega o IP salvo da última execução
-    last_known_ip = _load_last_known_ip()
-    
-    # Obtém todos os IPs associados ao MAC
-    all_ips = _get_all_ips_from_mac(mac_address)
-    
-    # Se houver um IP salvo, ele é o primeiro a ser testado
-    if last_known_ip and last_known_ip in all_ips:
-        all_ips.remove(last_known_ip)
-        all_ips.insert(0, last_known_ip)
-    
-    # Loop pelos IPs encontrados
-    for ip in all_ips:
-        if _validate_and_test_ip(ip, expected_schema):
-            _save_last_known_ip(ip)
-            return ip
-            
-    print("Nenhum IP válido encontrado para a NodeMCU #1.")
+        # Tenta enviar uma requisição e verificar a resposta
+        try:
+            response = requests.get(f"http://{ip}", timeout=1)
+            # Verifica se o MAC da resposta HTTP corresponde ao MAC procurado
+            if response.headers.get('X-ESP8266-MAC', '').lower() == mac_address.lower():
+                return ip
+        except requests.exceptions.RequestException:
+            continue
     return None
