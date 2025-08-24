@@ -7,8 +7,8 @@
 #include <Wire.h> // Necessário para a comunicação I2C do BMP280
 
 // Substitua com as credenciais da sua rede Wi-Fi
-const char* ssid = "Sua Rede Aqui";
-const char* password = "Sua Senha Aqui";
+const char* ssid = "Sua rede aqui";
+const char* password = "Sua senha aqui";
 
 // Pinos dos sensores
 const int SOIL_MOISTURE_PIN = A0;
