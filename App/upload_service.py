@@ -49,7 +49,9 @@ def upload_thingspeak(data):
         "field2": data.get("umidade"),
         "field3": data.get("luminosidade"),
         "field4": data.get("umidade_solo"),
-        "field5": data.get("estado_chuva")
+        "field5": data.get("estado_chuva"),
+        "field6": data.get("temperatura_bmp"), # Novo campo para temperatura do BMP280
+        "field7": data.get("pressao_bmp")      # Novo campo para pressão do BMP280
     }
     
     try:

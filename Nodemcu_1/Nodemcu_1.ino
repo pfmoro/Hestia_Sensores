@@ -24,8 +24,8 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // --- Parâmetros de Configuração ---
 // Substitua com as credenciais da sua rede Wi-Fi principal
-const char* ssid = "NET_2G41D729_EXT";
-const char* password = "PAgm8685";
+const char* ssid = "Sua Rede Aqui";
+const char* password = "Sua Senha Aqui";
 const unsigned long UPDATE_INTERVAL_MS = 10000; // Intervalo de atualização em milissegundos (10 segundos)
 
 // ----------------------------------
