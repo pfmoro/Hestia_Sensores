@@ -96,17 +96,17 @@ Para a correta montagem do hardware, siga o esquema de pinagem abaixo. As defini
 ### NodeMCU #2 (Umidade do Solo, Chuva e BMP280)
 
   * **Sensor de Umidade do Solo:**
-      * **VCC** → Pino **3.3V** da NodeMCU
+      * **VCC** → Pino **D6** da NodeMCU (controlado via software)
       * **GND** → Pino **GND** da NodeMCU
       * **Data** → Pino **A0** da NodeMCU
 
   * **Sensor de Chuva:**
-      * **VCC** → Pino **3.3V** da NodeMCU
+      * **VCC** → Pino **D7** da NodeMCU (controlado via software)
       * **GND** → Pino **GND** da NodeMCU
       * **Data (Digital)** → Pino **D5** da NodeMCU
 
   * **Sensor BMP280 (Pressão e Temperatura):**
-      * **VCC** → Pino **3.3V** da NodeMCU
+      * **VCC** → Pino **3.3V** da NodeMCU (fixo)
       * **GND** → Pino **GND** da NodeMCU
       * **SDA** → Pino **D2** da NodeMCU
       * **SCL** → Pino **D1** da NodeMCU
@@ -120,6 +120,9 @@ O BMP280 opera usando o protocolo I2C, que é muito eficiente, mas sensível à 
 * **Endereço I2C:** O endereço padrão do BMP280 é **`0x76`** ou **`0x77`**. O código fornecido usa a biblioteca da Adafruit, que geralmente encontra o endereço automaticamente, mas se houver problemas, pode ser necessário especificar o endereço na inicialização.
 * **Aterramento (GND):** Certifique-se de que o pino `GND` do sensor esteja firmemente conectado ao `GND` da NodeMCU. Uma conexão ruim é uma causa comum de falha na leitura.
 * **Pinos I2C:** A NodeMCU possui pinos específicos para I2C (`D1` para SCL e `D2` para SDA). Embora o ESP8266 possa usar software I2C em outros pinos, usar os pinos dedicados (`D1` e `D2`) é a prática recomendada para estabilidade.
+* **Soldagem dos Pinos:** Para garantir melhor conectividade, os pinos do BMP280 devem ser soldados ao sensor, conforme guia da [Adafruit](https://cdn-learn.adafruit.com/downloads/pdf/adafruit-bmp280-barometric-pressure-plus-temperature-sensor-breakout.pdf)
+
+**Atenção à Interferência:** O código da NodeMCU #2 desliga o VCC dos sensores de umidade do solo e de chuva antes de ler o BMP280. Isso é intencional e uma prática recomendada. Sensores como os de umidade e chuva consomem uma quantidade significativa de energia ao ligar e podem causar picos de corrente ou "ruído" na linha de 3.3V, o que poderia afetar negativamente a precisão de leituras de sensores sensíveis como o BMP280. A lógica de controle de energia garante que o BMP280 tenha um ambiente elétrico mais estável durante a leitura.
 
 ---
 
