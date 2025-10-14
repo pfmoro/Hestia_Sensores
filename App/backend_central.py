@@ -1,80 +1,96 @@
-﻿import time
-import json
+﻿import requests
 import os
+import json
 from dotenv import load_dotenv
-
-
-# Importando as funções dos scripts que iremos criar
-from ip_finder import find_nodemcu1_ip
-from communication_service import get_data_from_nodemcu1, get_data_from_nodemcu2
+from ip_finder import find_nodemcu_ip 
+from communication_service import get_data_from_nodemcu
 from upload_service import upload_data
 
-
-# Carrega as variáveis do arquivo .env
+# Carrega as variáveis de ambiente
 load_dotenv()
 
+# Dicionário de configuração das NodeMCUs
+NODEMCU_CONFIGS = {
+    '1': {
+        'mac': os.getenv("MAC_NODEMCU_1"),
+        'schema': os.getenv("EXPECTED_SCHEMA_NODE_1"),
+        'ip': os.getenv("IP_NODEMCU_1"),
+    },
+    '3': { # NodeMCU Ruidosos
+        'mac': os.getenv("MAC_NODEMCU_3"),
+        'schema': os.getenv("EXPECTED_SCHEMA_NODE_3"),
+        'ip': os.getenv("IP_NODEMCU_3"),
+    },
+    '4': { # NodeMCU BMP280
+        'mac': os.getenv("MAC_NODEMCU_4"),
+        'schema': os.getenv("EXPECTED_SCHEMA_NODE_4"),
+        'ip': os.getenv("IP_NODEMCU_4"),
+    },
+    '5': { # NodeMCU MQ-135
+        'mac': os.getenv("MAC_NODEMCU_5"),
+        'schema': os.getenv("EXPECTED_SCHEMA_NODE_5"),
+        'ip': os.getenv("IP_NODEMCU_5"),
+    },
+}
 
-# --- Parâmetros de Configuração ---
-TEMPO_ESPERA_SEGUNDOS = int(os.getenv("TEMPO_ESPERA_SEGUNDOS"))
-MAC_NODEMCU_1 = os.getenv("MAC_NODEMCU_1")
-IP_NODEMCU_2_AP = os.getenv("IP_NODEMCU_2") # IP fixo para o modo bateria
-EXPECTED_SCHEMA_NODE_1 = os.getenv("EXPECTED_SCHEMA_NODE_1").split(',')
-LOCAL_SAVE_PATH = os.getenv("LOCAL_SAVE_PATH")
-EXECUTION_ENVIRONMENT = os.getenv("EXECUTION_ENVIRONMENT")
-NODEMCU2_POWER_MODE = os.getenv("NODEMCU2_POWER_MODE")
+def collect_all_data():
+    """
+    Coleta dados de todas as NodeMCUs configuradas, pulando as que têm schema vazio.
+    """
+    all_data = {}
+    
+    for num, config in NODEMCU_CONFIGS.items():
+        schema_list = [s.strip() for s in config['schema'].split(',')] if config['schema'] else []
 
+        if not schema_list:
+            print(f"NodeMCU #{num} PULAR: EXPECTED_SCHEMA_NODE_{num} está vazio.")
+            continue  # Pula esta NodeMCU se o schema for vazio
 
-# Configurações para o modo tomada
-MAC_NODEMCU_2_CLIENT = os.getenv("MAC_NODEMCU_2")
-EXPECTED_SCHEMA_NODE_2_CLIENT = os.getenv("EXPECTED_SCHEMA_NODE_2").split(',')
+        print(f"\n--- Coletando dados da NodeMCU #{num} ---")
+        
+        # 1. Tenta usar o IP fixo ou buscar o IP
+        ip_address = config['ip']
+        if not ip_address:
+             # Se o IP fixo falhar, tenta buscar (implementação em ip_finder.py)
+             ip_address = find_nodemcu_ip(config['mac'], schema_list)
+        
+        if ip_address:
+            # 2. Coleta os dados
+            data = get_data_from_nodemcu(ip_address, schema_list)
+            if data:
+                all_data.update(data)
+        else:
+            print(f"ERRO: Não foi possível obter o IP ou os dados da NodeMCU #{num}.")
 
-
-
-
-# --- Lógica Principal do Backend ---
-
+    return all_data
 
 def main():
-    """
-    Função principal do backend que roda em loop.
-    """
-    print("Backend central iniciado. Aguardando a primeira coleta...")
-    
-    while True:
-        try:
-            print("\n--- Início do ciclo de coleta ---")
-            
-            # 1. Coletar dados da NodeMCU #1
-            ip_nodemcu1 = find_nodemcu1_ip(MAC_NODEMCU_1, EXPECTED_SCHEMA_NODE_1)
-            dados_node1_json = get_data_from_nodemcu1(ip_nodemcu1)
-            dados_node1 = json.loads(dados_node1_json)
-            print(f"Dados NodeMCU #1: {dados_node1}")
-            
-            # 2. Coletar dados da NodeMCU #2
-            if NODEMCU2_POWER_MODE.lower() == "plugged":
-                # Busca o IP se estiver no modo tomada
-                ip_nodemcu2 = find_nodemcu1_ip(MAC_NODEMCU_2_CLIENT, EXPECTED_SCHEMA_NODE_2_CLIENT)
-                # O parâmetro 'ip_or_ssid' é o IP
-                dados_node2_json = get_data_from_nodemcu2(ip_nodemcu2, power_mode=NODEMCU2_POWER_MODE)
-            else: # modo bateria
-                # O parâmetro 'ip_or_ssid' é o SSID do AP
-                dados_node2_json = get_data_from_nodemcu2("NodeMCU_Sensores_2", environment=EXECUTION_ENVIRONMENT, power_mode=NODEMCU2_POWER_MODE)
-            
-            dados_node2 = json.loads(dados_node2_json)
-            print(f"Dados NodeMCU #2: {dados_node2}")
-            
-            # 3. Combinar os dados e fazer o upload
-            dados_completos = {**dados_node1, **dados_node2}
-            upload_data(dados_completos, LOCAL_SAVE_PATH, EXECUTION_ENVIRONMENT)
-            
-            print("--- Fim do ciclo de coleta ---")
-            
-        except Exception as e:
-            print(f"Ocorreu um erro no ciclo de coleta: {e}")
-            
-        print(f"Aguardando {TEMPO_ESPERA_SEGUNDOS} segundos para o próximo ciclo...")
-        time.sleep(TEMPO_ESPERA_SEGUNDOS)
+    tempo_espera = int(os.getenv("TEMPO_ESPERA_SEGUNDOS", 60))
+    local_save_path = os.getenv("LOCAL_SAVE_PATH", ".")
+    environment = os.getenv("EXECUTION_ENVIRONMENT", "linux_pc")
 
+    while True:
+        print(f"\n{'='*50}")
+        print(f"Iniciando ciclo de coleta de dados...")
+        print(f"{'='*50}")
+        
+        # 1. Coletar dados de todas as NodeMCUs ativas
+        data_to_upload = collect_all_data()
+
+        if data_to_upload:
+            # 2. Adicionar timestamp
+            data_to_upload['timestamp'] = datetime.datetime.now().isoformat()
+            
+            # 3. Enviar para serviços
+            upload_data(data_to_upload, local_save_path, environment)
+        else:
+            print("Nenhum dado coletado das NodeMCUs ativas. Pulando o upload.")
+
+        print(f"\n--- Aguardando {tempo_espera} segundos para o próximo ciclo... ---")
+        time.sleep(tempo_espera)
 
 if __name__ == "__main__":
+    # Importações adicionais necessárias para o main (se não estiverem no início)
+    import datetime
+    import time
     main()

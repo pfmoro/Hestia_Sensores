@@ -3,7 +3,8 @@ import re
 import requests
 import os
 import sys
-
+from dotenv import load_dotenv
+timeout=os.getenv("timeout")
 # --- Lógica de Persistência do IP ---
 
 def _save_last_known_ip(ip, filename="last_known_ip.txt"):
@@ -33,7 +34,7 @@ def _validate_and_test_ip(ip, expected_schema, mac_address=None):
     Retorna True se a resposta for válida, False caso contrário.
     """
     try:
-        response = requests.get(f"http://{ip}/", timeout=5)
+        response = requests.get(f"http://{ip}/", timeout=timeout)
         response.raise_for_status()  # Lança um erro para status de erro HTTP
         
         # O cabeçalho HTTP 'X-ESP8266-MAC' pode ser usado para validação.
@@ -72,10 +73,10 @@ def _find_ip_from_arp(mac_address):
     try:
         if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
             # Comando para Linux e macOS
-            output = subprocess.check_output(['arp', '-a'], timeout=5).decode('utf-8', errors='ignore')
+            output = subprocess.check_output(['arp', '-a'], timeout=timeout).decode('utf-8', errors='ignore')
         elif sys.platform.startswith('win'):
             # Comando para Windows
-            output = subprocess.check_output(['arp', '-a'], timeout=5).decode('latin-1', errors='ignore')
+            output = subprocess.check_output(['arp', '-a'], timeout=timeout).decode('latin-1', errors='ignore')
         else:
             print("Plataforma não suportada para busca ARP.")
             return None
@@ -112,9 +113,9 @@ def _find_ip_by_range(mac_address, expected_schema):
 
 # --- Função Principal de Descoberta (usada pelo backend_central.py) ---
 
-def find_nodemcu1_ip(mac_address, expected_schema):
+def find_nodemcu_ip(mac_address, expected_schema):
     """
-    Função principal que busca o IP da NodeMCU.
+    Função principal que busca os IPs da NodeMCU.
     Prioriza o último IP conhecido e, se falhar, tenta a tabela ARP.
     Se tudo falhar, usa uma busca por faixa de IPs.
     """

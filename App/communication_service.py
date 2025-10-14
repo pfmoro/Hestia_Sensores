@@ -2,10 +2,38 @@
 import json
 import time
 import subprocess
-
+from dotenv import load_dotenv
+import os
+timeout=os.getenv("timeout")
 
 # --- Funções de Comunicação ---
 
+def get_data_from_nodemcu(ip, expected_schema_list):
+    """
+    Faz a requisição HTTP para a NodeMCU e valida o schema.
+    Retorna o JSON da NodeMCU como dicionário ou None em caso de falha.
+    """
+    try:
+        url = f"http://{ip}/"
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status() 
+        
+        data = response.json()
+        
+        # Validação do schema
+        for key in expected_schema_list:
+            if key not in data:
+                print(f"Erro: Chave '{key}' não encontrada no JSON de {ip}.")
+                return None
+        
+        return data
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Erro de conexão com {ip}: {e}")
+        return None
+    except ValueError as e:
+        print(f"Erro de parsing JSON em {ip}: {e}")
+        return None
 
 def get_data_from_nodemcu1(ip):
     # ... (código inalterado) ...
@@ -16,7 +44,7 @@ def get_data_from_nodemcu1(ip):
     url = f"http://{ip}/"
     print(f"Tentando coletar dados da NodeMCU #1 em {url}...")
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=timeout)
         response.raise_for_status()
         
         return response.text
@@ -36,7 +64,7 @@ def get_data_from_nodemcu2(ip_or_ssid, environment="android", power_mode="batter
         url = f"http://{ip_or_ssid}/"
         print(f"Tentando coletar dados da NodeMCU #2 em modo tomada em {url}...")
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=timeout)
             response.raise_for_status()
             return response.text
         except requests.exceptions.RequestException as e:
@@ -70,7 +98,7 @@ def get_data_from_nodemcu2(ip_or_ssid, environment="android", power_mode="batter
 
     for _ in range(15):
         try:
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=timeout)
             response.raise_for_status()
             print("Conexão com a NodeMCU #2 bem-sucedida!")
             return response.text

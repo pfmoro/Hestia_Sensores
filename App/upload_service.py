@@ -42,17 +42,30 @@ def upload_thingspeak(data):
         print("Erro: THINGSPEAK_API_KEY não encontrada no arquivo .env.")
         return
 
-
+    # Mapeamento de todos os campos coletados para os fields do ThingSpeak.
+    # Você deve verificar se o seu canal ThingSpeak tem fields suficientes.
     payload = {
         "api_key": api_key,
+        
+        # NodeMCU #1 (Exemplo)
         "field1": data.get("temperatura"),
         "field2": data.get("umidade"),
         "field3": data.get("luminosidade"),
+        
+        # NodeMCU #3 (Ruidosos)
         "field4": data.get("umidade_solo"),
         "field5": data.get("estado_chuva"),
-        "field6": data.get("temperatura_bmp"), # Novo campo para temperatura do BMP280
-        "field7": data.get("pressao_bmp")      # Novo campo para pressão do BMP280
+        
+        # NodeMCU #4 (BMP280)
+        "field6": data.get("temperatura_bmp"),
+        "field7": data.get("pressao_bmp"),
+        
+        # NodeMCU #5 (MQ-135)
+        "field8": data.get("qualidade_ar_raw"), 
     }
+    
+    # Remove entradas None (dados não coletados)
+    payload = {k: v for k, v in payload.items() if v is not None}
     
     try:
         url = "https://api.thingspeak.com/update"

@@ -6,6 +6,7 @@
 // ---- Configurações Globais ----
 const char* ssid     = "SEU_SSID";
 const char* password = "SUA_SENHA";
+
 const uint8_t bmpAddress = 0x76;  // endereço I2C do BMP280 (0x76 ou 0x77)
 
 // ---- Controle de energia dos sensores ruidosos ----
@@ -13,6 +14,7 @@ const uint8_t bmpAddress = 0x76;  // endereço I2C do BMP280 (0x76 ou 0x77)
 #define PWR_CHUVA   D7   // VCC do sensor de chuva
 
 // ---- Pinos de dados ----
+
 #define PINO_UMIDADE A0   // saída analógica do sensor de umidade
 #define PINO_CHUVA   D5   // saída digital do sensor de chuva
 
