@@ -5,6 +5,8 @@
 
 Este projeto de software e hardware é um sistema de monitoramento para plantas e ambientes. Utilizando **quatro placas NodeMCU ESP8266** (NodeMCU #1, #3, #4 e #5), ele coleta dados de diversos sensores e os envia para um backend centralizado em Python. Os dados são então visualizados em tempo real através de uma interface web com Streamlit e armazenados em serviços de nuvem como ThingSpeak e Google Drive.
 
+ Uma das nodes, Nodemcu_auto, não é vinculada ao restante do projeto e pode ser utilizada de forma totalmente autonoma para coleta de dados ambientais e upload no thingspeak, no entanto, ela não é capaz de fazer a leitura da totalidade dos sensores e nem armazenar dados localmente ou no google drive. Por ser apartada, possui uma documentação própria, podendo ser consultada na pasta respectiva.
+
 ## 📋 Lista de Materiais Necessários 
 
 Para montar este projeto, você precisará dos seguintes componentes:
