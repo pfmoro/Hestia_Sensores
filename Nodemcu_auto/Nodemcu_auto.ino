@@ -13,12 +13,6 @@
 //unsigned long const CHANNEL_ID = 1111111111;  // Substitua XXXXXX pelo seu Channel ID
 //const char * const WRITE_API_KEY = "YYYYYYYYYYYYYYYY"; // Substitua YYYYY pelo seu Write API Key
 
-const char* ssid = "NET_2G41D729_EXT";        // Nome da rede Wi-Fi [cite: 15]
-const char* password = "PAgm8685";    // Senha da rede Wi-Fi [cite: 16]
-unsigned long const CHANNEL_ID = 3018477;  // Substitua XXXXXX pelo seu Channel ID
-const char * const WRITE_API_KEY = "EZ37TSYU6DZIEQ60"; // Substitua YYYYY pelo seu Write API Key
-
-
 // Intervalo de atualização (em milissegundos). 10 minutos = 600000 ms
 const unsigned long UPDATE_INTERVAL_MS = 600000;
 
