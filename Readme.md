@@ -67,11 +67,17 @@ Esta placa implementa um *delay* de 500ms e controle de energia (`D6` e `D7`) pa
 * **Pinagem Chave:** Leitura analógica em **A0**. Requer alimentação constante (VCC 3.3V fixo) para o período de **aquecimento (burn-in)** inicial.
 * **Código:** `Nodemcu_5/nodemcu_5.ino`
 
-### 5. NodeMCU Auxiliar
+### 5. NodeMCU Auto 
 
 #### 🧭 NodeMCU_auto
 * **Função:** Esta é uma NodeMCU **autônoma**, separada do backend central (`App/`). Ela possui sua própria documentação e firmware para coletar dados ambientais e fazer o upload diretamente para o ThingSpeak sem a intervenção do servidor Python.
 * **Diretório:** `Nodemcu_auto/`
+
+### 6. NodeMCU Multiplex
+
+#### 🧭 NodeMCU_multiplex
+* **Função:** Esta também é uma NodeMCU **autônoma**, separada do backend central (`App/`). Ela possui sua própria documentação e firmware para coletar dados ambientais e fazer o upload diretamente para o ThingSpeak sem a intervenção do servidor Python. No entanto, ao contrário da NodeMCU_auto, os sensores utilizados por ela são todos analógicos, como a node só possui uma única entrada analógica, um multiplexador analógico é utilizado para efetuar a leitura dos sensores.
+* **Diretório:** `Nodemcu_multiplex/`
 
 ---
 
