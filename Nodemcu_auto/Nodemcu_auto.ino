@@ -8,10 +8,11 @@
 #include "ThingSpeak.h"
 
 // --- Parâmetros de Configuração ---
-const char* ssid = "Sua Rede Aqui";        // Nome da rede Wi-Fi [cite: 15]
-const char* password = "Sua Senha Aqui";    // Senha da rede Wi-Fi [cite: 16]
-unsigned long const CHANNEL_ID = XXXXXXXXXX;  // Substitua XXXXXX pelo seu Channel ID
-const char * const WRITE_API_KEY = "YYYYYYYYYYYYYYYY"; // Substitua YYYYY pelo seu Write API Key
+//const char* ssid = "Sua Rede Aqui";        // Nome da rede Wi-Fi [cite: 15]
+//const char* password = "Sua Senha Aqui";    // Senha da rede Wi-Fi [cite: 16]
+//unsigned long const CHANNEL_ID = 1111111111;  // Substitua XXXXXX pelo seu Channel ID
+//const char * const WRITE_API_KEY = "YYYYYYYYYYYYYYYY"; // Substitua YYYYY pelo seu Write API Key
+
 
 // Intervalo de atualização (em milissegundos). 10 minutos = 600000 ms
 const unsigned long UPDATE_INTERVAL_MS = 600000;
@@ -42,22 +43,22 @@ float bmp_pressao = NAN;
 void lerSensores() {
   Serial.println("Lendo sensores...");
   // 1. Lendo o sensor DHT11
-  dht_umidade = dht.readHumidity(); \\[cite: 18]
-  dht_temp = dht.readTemperature(); \\[cite: 19]
+  dht_umidade = dht.readHumidity(); // [cite: 18]
+  dht_temp = dht.readTemperature(); //[cite: 19]
 
   // Verificando se as leituras do DHT11 foram bem-sucedidas
   if (isnan(dht_umidade) || isnan(dht_temp)) {
     Serial.println("Falha na leitura do sensor DHT!");
-    dht_umidade = -1.0; // Valor de erro \\[cite: 20]
-    dht_temp = -1.0;    // Valor de erro \\[cite: 20]
+    dht_umidade = -1.0; // Valor de erro [cite: 20]
+    dht_temp = -1.0;    // Valor de erro [cite: 20]
   }
 
   // 2. Lendo o sensor LDR
-  luminosidade = analogRead(LDR_PIN); \\[cite: 21]
+  luminosidade = analogRead(LDR_PIN); //[cite: 21]
 
   // 3. Lendo o sensor BMP280
-  // Leitura BMP280 [cite: 3]
-  bmp_temp = bmp.readTemperature(); \\[cite: 3]
+  // Leitura BMP280 // [cite: 3]
+  bmp_temp = bmp.readTemperature(); //[cite: 3]
   bmp_pressao = bmp.readPressure() / 100.0; // Converte para hPa [cite: 4]
 }
 
@@ -71,28 +72,28 @@ void handleRoot() {
   doc["temperatura_dht"] = dht_temp;
   doc["umidade_dht"] = dht_umidade;
   doc["luminosidade_ldr"] = luminosidade;
-  doc["temperatura_bmp"] = bmp_temp; \\[cite: 5]
-  doc["pressao_bmp"] = bmp_pressao; \\[cite: 5]
+  doc["temperatura_bmp"] = bmp_temp; //[cite: 5]
+  doc["pressao_bmp"] = bmp_pressao; //[cite: 5]
 
   String jsonString;
   serializeJson(doc, jsonString);
 
-  server.send(200, "application/json", jsonString); [cite: 23]
+  server.send(200, "application/json", jsonString); //[cite: 23]
   Serial.println("JSON enviado via WebServer.");
 }
 
 
 void setup() {
-  Serial.begin(115200); \\[cite: 5, 24]
+  Serial.begin(115200); //[cite: 5, 24]
   delay(10);
   
   // 1. Inicializa sensores e I2C
-  dht.begin(); [cite: 24]
+  dht.begin(); //[cite: 24]
   Wire.begin(D2, D1); // Inicializa I2C (SDA=D2, SCL=D1) [cite: 6]
 
   // Tenta inicializar o BMP280
   if (!bmp.begin(BMP_ADDRESS)) {
-    Serial.println(F("BMP280 não encontrado ou falha na inicialização!")); [cite: 7]
+    Serial.println(F("BMP280 não encontrado ou falha na inicialização!")); //[cite: 7]
     // O código não para, mas as leituras do BMP serão NAN.
   }
 
@@ -102,12 +103,12 @@ void setup() {
   
   Serial.print("Conectando a ");
   Serial.println(ssid);
-  WiFi.begin(ssid, password); \\[cite: 7, 24]
+  WiFi.begin(ssid, password); //[cite: 7, 24]
 
   // Aguarda a conexão [cite: 7, 25]
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print("."); \\[cite: 8, 26]
+    Serial.print("."); //[cite: 8, 26]
   }
 
   Serial.println("\nWiFi conectado!");
@@ -115,8 +116,8 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   // 3. Configuração do Servidor Web
-  server.on("/", handleRoot); \\[cite: 27]
-  server.begin(); [cite: 27]
+  server.on("/", handleRoot); //[cite: 27]
+  server.begin(); //[cite: 27]
   Serial.println("HTTP server started");
 
   // Primeira leitura dos sensores para ter dados iniciais [cite: 28]
@@ -148,8 +149,8 @@ void loop() {
     lerSensores();
     
     Serial.print("DHT Temp: "); Serial.print(dht_temp);
-    Serial.print(" °C, Umid: "); Serial.print(dht_umidade); [cite: 31]
-    Serial.print(" %, LDR: "); Serial.print(luminosidade); [cite: 31]
+    Serial.print(" °C, Umid: "); Serial.print(dht_umidade); //[cite: 31]
+    Serial.print(" %, LDR: "); Serial.print(luminosidade); //[cite: 31]
     Serial.print(", BMP Temp: "); Serial.print(bmp_temp);
     Serial.print(" °C, Pressao: "); Serial.print(bmp_pressao);
     Serial.println(" hPa");
@@ -160,7 +161,8 @@ void loop() {
     ThingSpeak.setField(1, dht_temp);      // Field 1: Temperatura DHT11
     ThingSpeak.setField(2, dht_umidade);   // Field 2: Umidade DHT11
     ThingSpeak.setField(3, luminosidade);  // Field 3: Luminosidade LDR
-//Fields 4 e 5 são usados para sensor de umidade neste projeto
+    //Fields 4 e 5 neste canal são os sensores de umidade de solo e de chuva,
+    // não usados neste projeto
     ThingSpeak.setField(6, bmp_temp);      // Field 6: Temperatura BMP280
     ThingSpeak.setField(7, bmp_pressao);   // Field 7: Pressão BMP280
 
