@@ -241,11 +241,3 @@ threshold = 500
 
 ---
 
-Se quiser, posso gerar:
-
-✅ Um diagrama em blocos
-✅ Um fluxograma do protocolo I2C entre os dois
-✅ Um PDF formatado deste README
-✅ Um esquema elétrico em Fritzing
-
-Basta pedir!
