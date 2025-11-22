@@ -79,6 +79,8 @@ Esta placa implementa um *delay* de 500ms e controle de energia (`D6` e `D7`) pa
 * **Função:** Esta também é uma NodeMCU **autônoma**, separada do backend central (`App/`). Ela possui sua própria documentação e firmware para coletar dados ambientais e fazer o upload diretamente para o ThingSpeak sem a intervenção do servidor Python. No entanto, ao contrário da NodeMCU_auto, os sensores utilizados por ela são todos analógicos, como a node só possui uma única entrada analógica, um multiplexador analógico é utilizado para efetuar a leitura dos sensores.
 * **Diretório:** `Nodemcu_multiplex/`
 
+### 7. NodeMCU Multiboard
+
 #### 🧭 NodeMCU_multiboard
 * **Função:** Similar a NodeMCU_Multiplex, no entanto, aqui utilizamos um arduino no lugar do multiplexador, o arduino possui mais portas analógicas do que a Node, permitindo uma leitura de mais sensores. Arquino envia os dados a Node pelo protocolo i2c
 * **Diretório:** `Nodemcu_Multiboard/`
