@@ -27,7 +27,7 @@ Características importantes:
 
   * A **NodeMCU atua como MASTER**.
   * O **Arduino atua como SLAVE**, com endereço `0x08`.
-## Considerações sobre diferença de voltagem e conversor Lógico: ##
+ ** Considerações sobre diferença de voltagem e conversor Lógico: **
   
   A tensão de operação da NodeMCU é de 3.3v enquanto o Arduino opera em 5v, por isso é importante a existência de um conversor lógico entre eles. O Convesor lógico atua como um transformador, convertendo os sinais 5v enviados pelo arduino em sinais 3.3v, seguros para a nodemcu. deve-se ligar os pinos SDA e SCL de ambas as placas no conversor, bem como os respectivos GND e VCC/3v3 ao conversor. 
 ---
@@ -243,5 +243,6 @@ threshold = 500
 ```
 
 ---
+
 
 
