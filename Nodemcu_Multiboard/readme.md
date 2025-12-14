@@ -27,7 +27,9 @@ Características importantes:
 
   * A **NodeMCU atua como MASTER**.
   * O **Arduino atua como SLAVE**, com endereço `0x08`.
-
+## Considerações sobre diferença de voltagem e conversor Lógico: ##
+  
+  A tensão de operação da NodeMCU é de 3.3v enquanto o Arduino opera em 5v, por isso é importante a existência de um conversor lógico entre eles. O Convesor lógico atua como um transformador, convertendo os sinais 5v enviados pelo arduino em sinais 3.3v, seguros para a nodemcu. deve-se ligar os pinos SDA e SCL de ambas as placas no conversor, bem como os respectivos GND e VCC/3v3 ao conversor. 
 ---
 
 ## 🧰 2. Lista de Materiais
@@ -41,6 +43,7 @@ Características importantes:
 | 1          | Sensor DHT11 ou DHT22                             |
 | 1          | Sensor de chuva analógico                         |
 | 1          | Sensor capacitivo de umidade do solo              |
+| 1          | Conversor de Nível Lógico 3.3v <-> 5v             |
 | —          | Jumpers masculino-masculino                       |
 | —          | Protoboard                                        |
 | —          | Fonte USB 5V                                      |
@@ -240,4 +243,5 @@ threshold = 500
 ```
 
 ---
+
 
