@@ -4,188 +4,91 @@
 #include <ThingSpeak.h>
 
 // ======================================================================
-// CONFIGURAÇÕES GERAIS
+// CONFIGURAÇÕES DE REDE E THINGSPEAK
 // ======================================================================
+const char* ssid     = "NOME_DO_SEU_WIFI";
+const char* password = "SUA_SENHA_AQUI";
+
+
+unsigned long myChannelNumber = "ID_Canal";     // Seu ID do Canal ThingSpeak
+const char* myWriteAPIKey = "Sua_chave_aqui";  // Sua Write API Key
+
+// Pinos Locais
+#define PIN_SOLO A0
+#define PIN_CHUVA_DIGITAL D3
 
 // Intervalos
-unsigned long intervalo_sensores_ms = 10000;   // 10s
-unsigned long intervalo_thingspeak_ms = 600000; // 10min
+unsigned long intervalo_sensores = 10000;   // 10 segundos para debug/serial
+unsigned long intervalo_thingspeak = 600000; // 1 minuto para envio (TS exige pausa)
 unsigned long ultimo_sensores = 0;
 unsigned long ultimo_thingspeak = 0;
 
-// WiFi
-const char* ssid = "SEU_WIFI";
-const char* password = "SENHA";
+// Variáveis de Dados
+float ar_temp, ar_hum, ar_lux, ar_mq_ppm;
+int solo_perc, chuva_detectada;
 
-// ThingSpeak
 WiFiClient client;
-unsigned long myChannelNumber = 123456;  // SEU CANAL
-const char* myWriteAPIKey = "SUA_API_KEY";
-
-// Entrada Node
-#define PIN_UMIDADE A0
-
 ESP8266WebServer server(80);
 
-// Dados recebidos do Arduino (slave I2C)
-int ar_ldr_raw = 0;        // leitura ADC bruta do LDR
-float ar_lux = 0.0;        // lux (já calculado no Arduino)
-int ar_mq_raw = 0;         // leitura bruta MQ135 (ADC)
-float ar_mq_ppm = 0.0;     // ppm corrigido (não será exposto no JSON por enquanto)
-float ar_temp = 0.0;       // temperatura vindo do Arduino
-float ar_hum = 0.0;        // umidade vindo do Arduino
-int ar_chuva_raw = 0;      // leitura analógica do sensor de chuva
-
-int chuva_threshold = 500;
-int chuva_bin = 0;
-
-int solo = 0;
-int solo_perc = 0;
-
 // ======================================================================
-// Parse CSV Arduino
-// Formato esperado (7 campos):
-// LDRraw,LUX,MQraw,MQppm,Temp,Hum,ChuvaRaw
+// FUNÇÕES AUXILIARES
 // ======================================================================
+
 void parseArduinoData(String csv) {
-  Serial.print("[NODE] CSV recebido: ");
-  Serial.println(csv);
-
-  // Encontra posições das vírgulas (esperamos 6 vírgulas -> 7 campos)
+  // O formato esperado do Arduino é: LDRraw,Lux,MQraw,PPM,Temp,Hum
+  // Exemplo: "450,120.5,30,12.2,25.4,60.0"
+  
   int i1 = csv.indexOf(',');
   int i2 = csv.indexOf(',', i1 + 1);
   int i3 = csv.indexOf(',', i2 + 1);
   int i4 = csv.indexOf(',', i3 + 1);
   int i5 = csv.indexOf(',', i4 + 1);
-  int i6 = csv.indexOf(',', i5 + 1);
 
-  if (i1 < 0 || i2 < 0 || i3 < 0 || i4 < 0 || i5 < 0) {
-    Serial.println("[ERRO] CSV inválido! campos insuficientes.");
-    return;
+  if (i1 != -1 && i5 != -1) {
+    ar_lux    = csv.substring(i1 + 1, i2).toFloat();
+    ar_mq_ppm = csv.substring(i3 + 1, i4).toFloat();
+    ar_temp   = csv.substring(i4 + 1, i5).toFloat();
+    ar_hum    = csv.substring(i5 + 1).toFloat();
   }
-
-  // Se não encontrou a 6ª vírgula, ainda podemos obter o último campo pegando substring(a partir de i5+1)
-  // Mapear campos:
-  // 0: 0..i1-1            -> LDRraw
-  // 1: i1+1..i2-1         -> LUX
-  // 2: i2+1..i3-1         -> MQraw
-  // 3: i3+1..i4-1         -> MQppm
-  // 4: i4+1..i5-1         -> Temp
-  // 5: i5+1..i6-1 (ou to i6-1) -> Hum
-  // 6: i6+1..end          -> ChuvaRaw (se i6 >=0) else i5+1..end
-
-  // Ajuste caso a 6ª vírgula não exista (compatibilidade com strings menores)
-  String s0 = csv.substring(0, i1);
-  String s1 = csv.substring(i1 + 1, i2);
-  String s2 = csv.substring(i2 + 1, i3);
-  String s3 = csv.substring(i3 + 1, i4);
-  String s4 = csv.substring(i4 + 1, i5);
-
-  String s5;
-  String s6;
-
-  if (i6 >= 0) {
-    s5 = csv.substring(i5 + 1, i6);
-    s6 = csv.substring(i6 + 1);
-  } else {
-    // caso a 6ª vírgula não exista, tentamos recuperar hum/chuva a partir do que sobrar:
-    // assumimos: s5 = csv.substring(i5+1, i5+1 + até meio) ... mas como o formato esperado tem 7 campos,
-    // prefira sempre enviar corretamente do Arduino. Aqui fazemos fallback simples:
-    int remainingStart = i5 + 1;
-    // tenta separar pelo último ',' encontrado anteriormente (i5) — neste fallback colocamos todo resto em s5
-    s5 = csv.substring(remainingStart);
-    s6 = "0";
-  }
-
-  // Conversões (com robustez)
-  ar_ldr_raw = s0.toInt();
-  ar_lux = s1.toFloat();
-  ar_mq_raw = s2.toInt();
-  ar_mq_ppm = s3.toFloat();
-  ar_temp = s4.toFloat();
-  ar_hum = s5.toFloat();
-  ar_chuva_raw = s6.toInt();
-
-  Serial.println("[NODE] Valores do Arduino (após parse):");
-  Serial.printf("   LDR RAW : %d\n", ar_ldr_raw);
-  Serial.printf("   LUX     : %.2f\n", ar_lux);
-  Serial.printf("   MQ RAW  : %d\n", ar_mq_raw);
-  Serial.printf("   MQ PPM  : %.2f\n", ar_mq_ppm);
-  Serial.printf("   Temp    : %.1f\n", ar_temp);
-  Serial.printf("   Hum     : %.1f\n", ar_hum);
-  Serial.printf("   Chuva RAW: %d\n", ar_chuva_raw);
-
-  chuva_bin = (ar_chuva_raw <= chuva_threshold) ? 1 : 0;
-
-  Serial.printf("[NODE] Chuva BIN (1=molhado / 0=seco): %d\n", chuva_bin);
 }
 
-// ======================================================================
-// HTTP: retorna JSON de debug
-// ======================================================================
-void handleData() {
+void handleRoot() {
   String json = "{";
-
-  json += "\"solo\":" + String(solo) + ",";
-  json += "\"solo_perc\":" + String(solo_perc) + ",";
-  json += "\"ldr_raw\":" + String(ar_ldr_raw) + ",";
+  json += "\"umidade_solo_perc\":" + String(solo_perc) + ",";
+  json += "\"chuva\":" + String(chuva_detectada == 1 ? "true" : "false") + ",";
+  json += "\"temperatura\":" + String(ar_temp) + ",";
+  json += "\"umidade_ar\":" + String(ar_hum) + ",";
   json += "\"lux\":" + String(ar_lux) + ",";
-  // Não incluir MQ ppm no JSON de debug conforme solicitado (se quiser remover/adiicionar, edite aqui)
-  json += "\"mq_raw\":" + String(ar_mq_raw) + ",";
-  json += "\"temp_arduino\":" + String(ar_temp) + ",";
-  json += "\"hum_arduino\":" + String(ar_hum) + ",";
-  json += "\"chuva_raw\":" + String(ar_chuva_raw) + ",";
-  json += "\"chuva_bin\":" + String(chuva_bin);
-
+  json += "\"ppm_gas\":" + String(ar_mq_ppm);
   json += "}";
-
   server.send(200, "application/json", json);
-
-  Serial.println("[HTTP] JSON enviado.");
-}
-
-// ======================================================================
-// Map da leitura do sensor de umidade para porcentagem
-// (função já existente, mantida)
-// ======================================================================
-int umidadePercentual(int leitura) {
-  const int seco = 200;     // leitura no seco
-  const int molhado = 700;  // leitura totalmente na água
-
-  // Garante que a leitura fique dentro do intervalo
-  if (leitura < seco) leitura = seco;
-  if (leitura > molhado) leitura = molhado;
-
-  // Converte para porcentagem (0% = seco, 100% = molhado)
-  float perc = (float)(leitura - seco) * 100.0 / (molhado - seco);
-
-  return (int)perc;
 }
 
 // ======================================================================
 // SETUP
 // ======================================================================
 void setup() {
-  Serial.begin(9600);
-  Serial.println("\n=== NodeMCU MASTER + ThingSpeak.h ===");
-
-  // Wire: pinos SDA=SDA_PIN (D2), SCL=SCL_PIN (D1) conforme seu código anterior
-  Wire.begin(D2, D1);
-
+  Serial.begin(115200);
+  
+  pinMode(PIN_CHUVA_DIGITAL, INPUT);
+  
+  // Inicia I2C nos pinos D2 (SDA) e D1 (SCL)
+  Wire.begin(D2, D1); 
+  
+  // Conexão WiFi
   WiFi.begin(ssid, password);
-  Serial.print("[WiFi] Conectando");
+  Serial.print("Conectando WiFi");
   while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
     Serial.print(".");
-    delay(200);
   }
-  Serial.print("\n[WiFi] IP: ");
-  Serial.println(WiFi.localIP());
-
-  server.on("/", handleData);
-  server.begin();
-  Serial.println("[HTTP] WebServer iniciado.");
+  Serial.println("\nWiFi Conectado!");
+  Serial.print("IP: "); Serial.println(WiFi.localIP());
 
   ThingSpeak.begin(client);
+  
+  server.on("/", handleRoot);
+  server.begin();
 }
 
 // ======================================================================
@@ -195,63 +98,59 @@ void loop() {
   server.handleClient();
   unsigned long agora = millis();
 
-  // ------------------------------------------------------------------
-  // LEITURA SENSORES A CADA 10s (solicita o CSV do Arduino)
-  // ------------------------------------------------------------------
-  if (agora - ultimo_sensores >= intervalo_sensores_ms) {
+  // 1. LEITURA E PROCESSAMENTO (A cada 10s)
+  if (agora - ultimo_sensores >= intervalo_sensores) {
     ultimo_sensores = agora;
 
-    Serial.println("\n[NODE] Atualizando sensores (I2C) ...");
+    // --- Leituras Locais (NodeMCU) ---
+    int solo_raw = analogRead(PIN_SOLO);
+    // Calibração: 1024 (seco) a 200 (muito molhado)
+    solo_perc = map(solo_raw, 680, 250, 0, 100);
+    if (solo_perc > 100) solo_perc = 100;
+    if (solo_perc < 0) solo_perc = 0;
 
-    Wire.requestFrom(0x08, 64); // pede até 64 bytes (ajuste se necessário)
+    // Sensor de chuva digital (Geralmente LOW quando detecta água)
+    chuva_detectada = (digitalRead(PIN_CHUVA_DIGITAL) == LOW) ? 1 : 0;
+
+    // --- Leitura I2C (Arduino Slave 0x08) ---
+    Wire.requestFrom(0x08, 64);
     String csv = "";
-
-    unsigned long start = millis();
-    // espera por dados por curto período
     while (Wire.available()) {
-      char c = (char)Wire.read();
+      char c = Wire.read();
+      if (c == '\0') break; // Fim da string
       csv += c;
-      // proteção contra loops infinitos
-      if (millis() - start > 200) break;
     }
 
-    if (csv.length() > 0){
-       parseArduinoData(csv);
+    if (csv.length() > 0) {
+      parseArduinoData(csv);
+      Serial.println("\n--- Dados Recebidos do Arduino ---");
+      Serial.println("CSV: " + csv);
     }
-    else{
-      Serial.printf("csv.length zero \n");
-    }
-    solo = analogRead(PIN_UMIDADE);
-    solo_perc = umidadePercentual(solo);
-    Serial.printf("[NODE] Solo ADC: %d\n", solo);
-    Serial.printf("[NODE] Solo_perc: %d\n", solo_perc);
-    
+
+    // Debug Serial local
+    Serial.printf("Solo: %d%% | Solo Raw: %d| Chuva: %s | Temp: %.1fC | Lux: %.1f\n", 
+                  solo_perc, solo_raw,(chuva_detectada ? "SIM" : "NAO"), ar_temp, ar_lux);
   }
 
-  // ------------------------------------------------------------------
-  // ENVIO AO THINGSPEAK A CADA 10min (apenas solo_perc e lux)
-  // ------------------------------------------------------------------
-  if (agora - ultimo_thingspeak >= intervalo_thingspeak_ms) {
+  // 2. ENVIO THINGSPEAK (A cada 60s)
+  if (agora - ultimo_thingspeak >= intervalo_thingspeak) {
     ultimo_thingspeak = agora;
+    // Campos NodeMCU
+    ThingSpeak.setField(5, solo_perc);
+    ThingSpeak.setField(4, (float)chuva_detectada);
 
-    Serial.println("\n[TS] Enviando dados via ThingSpeak.h ...");
+    //Campso Arduino 
+    ThingSpeak.setField(9, ar_lux);
+    ThingSpeak.setField(9, ar_mq_ppm);
+    ThingSpeak.setField(9, ar_temp);
+    ThingSpeak.setField(9, ar_hum);
 
-    // Envia Campos ao thingspeak
-    ThingSpeak.setField(1, solo_perc);      // % solo
-    ThingSpeak.setField(2, ar_lux);         // LUX vindo do Arduino
-    ThingSpeak.setField(3, ar_mq_ppm);      // MQ-135 PPM corrigido
-    ThingSpeak.setField(4, ar_chuva_raw);   // chuva RAW
-    ThingSpeak.setField(5, ar_temp);        // temperatura Arduino
-    ThingSpeak.setField(6, ar_hum);         // umidade Arduino
+    int status = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
 
-
-    int httpCode = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
-
-    if (httpCode == 200) {
-      Serial.println("[TS] Atualização OK (200)");
+    if (status == 200) {
+      Serial.println(">>> ThingSpeak atualizado com sucesso!");
     } else {
-      Serial.print("[TS] Falha na atualização. Código: ");
-      Serial.println(httpCode);
+      Serial.println(">>> Erro no ThingSpeak: " + String(status));
     }
   }
 }

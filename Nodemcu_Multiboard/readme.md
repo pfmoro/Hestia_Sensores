@@ -27,11 +27,7 @@ Características importantes:
 
   * A **NodeMCU atua como MASTER**.
   * O **Arduino atua como SLAVE**, com endereço `0x08`.
-    
- ## Considerações sobre diferença de voltagem e conversor Lógico:
- 
-  A tensão de operação da NodeMCU é de 3.3v enquanto o Arduino opera em 5v, por isso é importante a existência de um conversor lógico entre eles. O Convesor lógico atua como um transformador, convertendo os sinais 5v enviados pelo arduino em sinais 3.3v, seguros para a nodemcu. deve-se ligar os pinos SDA e SCL de ambas as placas no conversor, bem como os respectivos GND e VCC/3v3 ao conversor.  
- 
+
 ---
 
 ## 🧰 2. Lista de Materiais
@@ -45,7 +41,6 @@ Características importantes:
 | 1          | Sensor DHT11 ou DHT22                             |
 | 1          | Sensor de chuva analógico                         |
 | 1          | Sensor capacitivo de umidade do solo              |
-| 1          | Conversor de Nível Lógico 3.3v <-> 5v             |
 | —          | Jumpers masculino-masculino                       |
 | —          | Protoboard                                        |
 | —          | Fonte USB 5V                                      |
@@ -60,7 +55,6 @@ Características importantes:
 | --------------------- | ---- |
 | LDR (GL5528)          | A0   |
 | MQ135 (RAW analógico) | A1   |
-| Sensor de chuva (RAW) | A2   |
 | SDA (I2C)             | A4   |
 | SCL (I2C)             | A5   |
 | DHT                   | D2   |
@@ -71,6 +65,7 @@ Características importantes:
 
 | Função                         | Pino    |
 | ------------------------------ | ------- |
+| Sensor de Chuva                | D3      |
 | I2C SDA                        | D2      |
 | I2C SCL                        | D1      |
 | Sensor solo (capacitivo)       | A0      |
@@ -78,7 +73,7 @@ Características importantes:
 
 ---
 
-### **Conexão I2C entre Arduino ↔ NodeMCU**
+### **Conexão I2C entre Arduino ↔ NodeMCU (via conversor lógico)**
 
 | Arduino  | NodeMCU |
 | -------- | ------- |
@@ -110,13 +105,13 @@ Responsável por **ler sensores analógicos** e enviar valores ao master em form
 O Arduino envia ao master uma string CSV:
 
 ```
-LDRraw, LUX, MQraw, MQppm, Temp, Hum, ChuvaRaw
+LDRraw, LUX, MQraw, MQppm, Temp, Hum
 ```
 
 Exemplo real:
 
 ```
-523, 180.2, 240, 41.5, 27.0, 62.0, 789
+523, 180.2, 240, 41.5, 27.0, 62.0
 ```
 
 ---
@@ -130,7 +125,7 @@ Tarefas:
 3. Lê o sensor de solo capacitivo.
 4. Converte umidade do solo para porcentagem.
 5. Exibe tudo em JSON pelo servidor web interno (debug).
-6. Envia ao ThingSpeak:
+6. Envia ao ThingSpeak(campos podem mudar):
 
    | Campo  | Enviado      |
    | ------ | ------------ |
@@ -245,7 +240,4 @@ threshold = 500
 ```
 
 ---
-
-
-
 

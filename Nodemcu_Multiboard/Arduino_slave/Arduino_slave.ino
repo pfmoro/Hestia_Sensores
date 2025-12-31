@@ -3,60 +3,62 @@
 #include <MQ135.h>
 
 #define I2C_ADDRESS 0x08
-
-// Sensores
 #define PIN_LDR A0
 #define PIN_MQ135 A1
-#define PIN_CHUVA A2   // CHUVA ANALÓGICO
 #define DHTPIN 2
 #define DHTTYPE DHT11
 
-MQ135 mq(PIN_MQ135);
 DHT dht(DHTPIN, DHTTYPE);
+MQ135 mq(PIN_MQ135);
 
-int ldrValue, mqValue, rawChuva;
-float temp, hum, ppm_corrigido;
+char payload[64]; // Aumentado para segurança
+
+float ldrLux(int leituraADC) {
+    const float ADC_MAX = 1023.0; 
+    const float R_SERIE = 10000.0; 
+    const float CONST_A = 600000.0; 
+    const float CONST_B = -1.25; 
+    if (leituraADC <= 0) leituraADC = 1; 
+    float v_out = (float)leituraADC / ADC_MAX; 
+    float r_ldr = R_SERIE * (1.0 / v_out - 1.0); 
+    return (CONST_A * pow(r_ldr, CONST_B)); 
+}
 
 void setup() {
   Serial.begin(9600);
-  dht.begin();
-
-  Wire.begin(I2C_ADDRESS);
-  Wire.onRequest(requestEvent);
-
-  Serial.println("=== ARDUINO SLAVE I2C INICIADO ===");
+  dht.begin(); 
+  Wire.begin(I2C_ADDRESS); 
+  Wire.onRequest(requestEvent); 
+  Serial.println("=== ARDUINO SLAVE PRONTO ===");
 }
 
 void loop() {
-  // Leituras
-  ldrValue = analogRead(PIN_LDR);
-  mqValue = analogRead(PIN_MQ135);
-  rawChuva = analogRead(PIN_CHUVA);
+  int ldrRaw = analogRead(PIN_LDR); 
+  float lux = ldrLux(ldrRaw); 
+  int mqRaw = analogRead(PIN_MQ135); 
+  float temp = dht.readTemperature(); 
+  float hum = dht.readHumidity(); 
+  float ppm = mq.getCorrectedPPM(temp, hum); 
 
-  hum = dht.readHumidity();
-  temp = dht.readTemperature();
+  // Criando a string CSV manualmente para evitar o erro do snprintf com floats
+  String csv = String(ldrRaw) + "," + 
+               String(lux, 1) + "," + 
+               String(mqRaw) + "," + 
+               String(ppm, 1) + "," + 
+               String(temp, 1) + "," + 
+               String(hum, 1);
 
-  ppm_corrigido = mq.getCorrectedPPM(temp, hum);
+  // Copia para o buffer de char que o I2C usa
+  csv.toCharArray(payload, 64);
 
-  Serial.println("\n[Arduino] Leituras:");
-  Serial.print("  LDR: "); Serial.println(ldrValue);
-  Serial.print("  MQ135: "); Serial.println(mqValue);
-  Serial.print("  MQ135_PPM: "); Serial.println(ppm_corrigido);
-  Serial.print("  Temp: "); Serial.println(temp);
-  Serial.print("  Hum: "); Serial.println(hum);
-  Serial.print("  Chuva RAW: "); Serial.println(rawChuva);
+  // Debug apenas no loop principal
+  Serial.print("Payload Atualizado: ");
+  Serial.println(payload); 
 
   delay(2000);
 }
 
 void requestEvent() {
-  // Envia CSV: LDR,ppm_corrigido,temp,hum,chuva
-  String payload =
-      String(ldrValue) + "," +
-      String(ppm_corrigido) + "," +
-      String(temp) + "," +
-      String(hum) + "," +
-      String(rawChuva);
-
-  Wire.write(payload.c_str());
+  // Apenas envia o dado, sem Serial.print aqui dentro!
+  Wire.write(payload); 
 }
