@@ -134,7 +134,7 @@ Tarefas:
    | field3 | ar_mq_ppm    |
    | field4 | ar_temp      |
    | field5 | ar_hum       |
-   | field6 | ar_chuva_raw |
+
 
 ---
 
@@ -240,4 +240,5 @@ threshold = 500
 ```
 
 ---
+
 
