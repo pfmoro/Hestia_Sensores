@@ -1,6 +1,8 @@
 # NodeMCU #5 – Monitoramento Avançado de Qualidade do Ar (MQ‑135 + DHT11) 💨
 
-Esta é uma **nova versão do README**, atualizada para refletir:
+Esta placa é dedicada ao monitoramento da qualidade do ar (concentração de gases) usando o sensor [MQ-135](https://www.makerhero.com/blog/como-funciona-o-sensor-de-gas-mq-135/?srsltid=AfmBOorwAhi8It0JkbR7EZQjq7tZ1lGu5Q90_x1cF1DfJ-fndEwpIFdH)
+
+NEsta versão atualizada refletiremos:
 
 * A criação da biblioteca **`MQ135_corr`** (fork local da MQ135)
 * O **processo correto de calibração (RZero)**
@@ -187,3 +189,4 @@ Exemplo no Serial:
 ---
 
 🚀 **Projeto pronto para monitoramento ambiental contínuo, calibrado e documentado.**
+
