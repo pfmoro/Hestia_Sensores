@@ -4,7 +4,7 @@ import time
 import subprocess
 from dotenv import load_dotenv
 import os
-timeout=os.getenv("timeout")
+timeout=float(os.getenv("timeout"))
 
 # --- Funções de Comunicação ---
 

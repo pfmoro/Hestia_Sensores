@@ -12,27 +12,40 @@ load_dotenv()
 
 
 def save_data_atomically(data, path, filename="dados_completos.json"):
-    """
-    Salva os dados em um arquivo de forma atômica para evitar corrupção.
-    """
     if not path:
         print("Caminho de salvamento local não definido. Ignorando...")
         return
-        
+
     if path == ".":
         full_path = os.path.join(os.path.dirname(__file__), filename)
     else:
-        full_path = os.path.join(path, filename)
         os.makedirs(path, exist_ok=True)
-    
+        full_path = os.path.join(path, filename)
+
     temp_filename = full_path + ".tmp"
-    
-    json_data = json.dumps(data, indent=4)
+
+    # Lê dados existentes
+    if os.path.exists(full_path):
+        try:
+            with open(full_path, "r") as f:
+                existing_data = json.load(f)
+                if not isinstance(existing_data, list):
+                    existing_data = [existing_data]
+        except json.JSONDecodeError:
+            existing_data = []
+    else:
+        existing_data = []
+
+    # Append
+    existing_data.append(data)
+
+    # Escrita atômica
     with open(temp_filename, "w") as f:
-        f.write(json_data)
-        
+        json.dump(existing_data, f, indent=4)
+
     os.replace(temp_filename, full_path)
-    print(f"Dados salvos em '{full_path}' com sucesso.")
+    print(f"Dados adicionados em '{full_path}' com sucesso.")
+
 
 
 def upload_thingspeak(data):
@@ -48,13 +61,13 @@ def upload_thingspeak(data):
         "api_key": api_key,
         
         # NodeMCU #1 (Exemplo)
-        "field1": data.get("temperatura"),
-        "field2": data.get("umidade"),
-        "field3": data.get("luminosidade"),
+        "field1": data.get("temperatura_dht"),
+        "field2": data.get("umidade_dht"),
+        "field3": data.get("luminosidade_ldr"),
         
         # NodeMCU #3 (Ruidosos)
-        "field4": data.get("umidade_solo"),
-        "field5": data.get("estado_chuva"),
+        "field4": data.get("umidade_solo_perc"),
+        "field5": data.get("chuva"),
         
         # NodeMCU #4 (BMP280)
         "field6": data.get("temperatura_bmp"),

@@ -12,21 +12,25 @@ load_dotenv()
 # Dicionário de configuração das NodeMCUs
 NODEMCU_CONFIGS = {
     '1': {
+        'name':"NODEMCU_1",
         'mac': os.getenv("MAC_NODEMCU_1"),
         'schema': os.getenv("EXPECTED_SCHEMA_NODE_1"),
         'ip': os.getenv("IP_NODEMCU_1"),
     },
     '3': { # NodeMCU Ruidosos
+        'name':"NODEMCU_3",
         'mac': os.getenv("MAC_NODEMCU_3"),
         'schema': os.getenv("EXPECTED_SCHEMA_NODE_3"),
         'ip': os.getenv("IP_NODEMCU_3"),
     },
     '4': { # NodeMCU BMP280
+        'name':"NODEMCU_4",
         'mac': os.getenv("MAC_NODEMCU_4"),
         'schema': os.getenv("EXPECTED_SCHEMA_NODE_4"),
         'ip': os.getenv("IP_NODEMCU_4"),
     },
     '5': { # NodeMCU MQ-135
+        'name':"NODEMCU_5",
         'mac': os.getenv("MAC_NODEMCU_5"),
         'schema': os.getenv("EXPECTED_SCHEMA_NODE_5"),
         'ip': os.getenv("IP_NODEMCU_5"),
@@ -52,7 +56,7 @@ def collect_all_data():
         ip_address = config['ip']
         if not ip_address:
              # Se o IP fixo falhar, tenta buscar (implementação em ip_finder.py)
-             ip_address = find_nodemcu_ip(config['mac'], schema_list)
+             ip_address = find_nodemcu_ip(config['mac'], schema_list,config['name'])
         
         if ip_address:
             # 2. Coleta os dados

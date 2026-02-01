@@ -3,141 +3,140 @@ import re
 import requests
 import os
 import sys
+import json
 from dotenv import load_dotenv
-timeout=os.getenv("timeout")
-# --- Lógica de Persistência do IP ---
 
-def _save_last_known_ip(ip, filename="last_known_ip.txt"):
-    """Salva o IP mais recente em um arquivo para uso futuro."""
+load_dotenv()
+
+LAST_IP_FILE = os.getenv("LAST_IP_FILE", "last_known_ip.json")
+timeout = float(os.getenv("timeout", 5))
+
+# =========================================================
+# Lógica de Persistência do IP (JSON por Node)
+# =========================================================
+
+def save_last_known_ips(data):
+    """Salva os IPs conhecidos em um arquivo JSON."""
+    with open(LAST_IP_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def load_last_known_ips():
+    """Lê o JSON de IPs conhecidos."""
+    if not os.path.exists(LAST_IP_FILE):
+        return {}
     try:
-        with open(filename, "w") as f:
-            f.write(ip)
-        print(f"IP descoberto ({ip}) salvo para a próxima iteração.")
-    except IOError as e:
-        print(f"Erro ao salvar o IP: {e}")
+        with open(LAST_IP_FILE, "r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
 
-def _load_last_known_ip(filename="last_known_ip.txt"):
-    """Lê o último IP salvo no arquivo, se existir."""
-    if os.path.exists(filename):
-        try:
-            with open(filename, "r") as f:
-                return f.read().strip()
-        except IOError as e:
-            print(f"Erro ao carregar o último IP: {e}")
-    return None
-
-# --- Lógica de Validação e Chamada HTTP ---
+# =========================================================
+# Lógica de Validação HTTP
+# =========================================================
 
 def _validate_and_test_ip(ip, expected_schema, mac_address=None):
-    """
-    Faz uma chamada HTTP para o IP e valida a resposta.
-    Retorna True se a resposta for válida, False caso contrário.
-    """
     try:
         response = requests.get(f"http://{ip}/", timeout=timeout)
-        response.raise_for_status()  # Lança um erro para status de erro HTTP
-        
-        # O cabeçalho HTTP 'X-ESP8266-MAC' pode ser usado para validação.
-        # Verifica se o cabeçalho existe antes de tentar a comparação.
-        # Nota: Seu firmware NodeMCU_1.ino não envia este cabeçalho.
+        response.raise_for_status()
+
         if mac_address and 'X-ESP8266-MAC' in response.headers:
-            if response.headers.get('X-ESP8266-MAC', '').lower() != mac_address.lower():
-                print(f"Erro: MAC do cabeçalho '{response.headers.get('X-ESP8266-MAC')}' não corresponde ao MAC esperado '{mac_address}'.")
+            if response.headers['X-ESP8266-MAC'].lower() != mac_address.lower():
                 return False
 
         data = response.json()
-        
-        # Valida se todas as chaves esperadas estão no JSON
+
         for key in expected_schema:
             if key not in data:
-                print(f"Erro: Chave '{key}' não encontrada no JSON de {ip}.")
                 return False
-        
+
         print(f"Sucesso: IP {ip} respondeu com o schema esperado.")
         return True
-        
-    except requests.exceptions.RequestException as e:
-        print(f"Erro de conexão com {ip}: {e}")
-        return False
-    except ValueError as e:
-        print(f"Erro de parsing JSON em {ip}: {e}")
+
+    except (requests.exceptions.RequestException, ValueError):
         return False
 
-# --- Lógica de Tabela ARP ---
+# =========================================================
+# Busca via ARP
+# =========================================================
 
-def _find_ip_from_arp(mac_address):
-    """
-    Busca o IP na tabela ARP do sistema. Pode falhar em sistemas sem acesso root.
-    """
+def _find_ip_from_arp(mac_address, expected_schema):
     print("Tentando buscar na tabela ARP...")
     try:
-        if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
-            # Comando para Linux e macOS
-            output = subprocess.check_output(['arp', '-a'], timeout=timeout).decode('utf-8', errors='ignore')
-        elif sys.platform.startswith('win'):
-            # Comando para Windows
-            output = subprocess.check_output(['arp', '-a'], timeout=timeout).decode('latin-1', errors='ignore')
+        if sys.platform.startswith(("linux", "darwin")):
+            output = subprocess.check_output(['arp', '-a'], timeout=timeout).decode()
+        elif sys.platform.startswith("win"):
+            output = subprocess.check_output(['arp', '-a'], timeout=timeout).decode("latin-1")
         else:
-            print("Plataforma não suportada para busca ARP.")
             return None
-        
-        lines = output.splitlines()
-        for line in lines:
+
+        for line in output.splitlines():
             if mac_address.lower() in line.lower():
-                ip_match = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', line)
-                if ip_match:
-                    print(f"IP encontrado via tabela ARP: {ip_match.group(1)}")
-                    return ip_match.group(1)
-        return None
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-        print("Falha ao acessar a tabela ARP.")
+                match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
+                if match:
+                    ip = match.group(1)
+                    if _validate_and_test_ip(ip, expected_schema, mac_address):
+                        return ip
         return None
 
-# --- Lógica de Fallback por Faixa de IPs ---
+    except Exception:
+        return None
+
+# =========================================================
+# Busca por faixa de IP
+# =========================================================
 
 def _find_ip_by_range(mac_address, expected_schema):
-    """
-    Faz uma busca de força bruta em uma faixa de IPs comuns para encontrar o MAC.
-    """
-    print("Tentando busca por faixa de IPs (fallback)...")
-    
-    # Exemplo: busca na faixa de 192.168.0.200 a 192.168.0.299
+    print("Tentando busca por faixa de IPs...")
     base_ip = "192.168.0."
-    for i in range(200, 300):
+    for i in range(100, 300):
         ip = base_ip + str(i)
-        
         if _validate_and_test_ip(ip, expected_schema, mac_address):
             return ip
-            
     return None
 
-# --- Função Principal de Descoberta (usada pelo backend_central.py) ---
+# =========================================================
+# Função principal
+# =========================================================
 
-def find_nodemcu_ip(mac_address, expected_schema):
+def find_nodemcu_ip(mac_address, expected_schema, nodemcu_name=None):
     """
-    Função principal que busca os IPs da NodeMCU.
-    Prioriza o último IP conhecido e, se falhar, tenta a tabela ARP.
-    Se tudo falhar, usa uma busca por faixa de IPs.
+    Busca o IP da NodeMCU.
+    - Usa cache JSON por nome (se fornecido)
+    - Tenta ARP
+    - Faz brute-force na rede
     """
-    print(f"Iniciando busca pelo IP da NodeMCU (MAC: {mac_address})...")
-    
-    # 1. Tenta o último IP conhecido (método mais rápido)
-    last_known_ip = _load_last_known_ip()
-    if last_known_ip and _validate_and_test_ip(last_known_ip, expected_schema, mac_address):
-        print(f"Último IP conhecido {last_known_ip} é válido.")
-        return last_known_ip
-    
-    # 2. Tenta a busca na tabela ARP
-    ip_from_arp = _find_ip_from_arp(mac_address)
-    if ip_from_arp and _validate_and_test_ip(ip_from_arp, expected_schema, mac_address):
-        _save_last_known_ip(ip_from_arp)
-        return ip_from_arp
-    
-    # 3. Tenta o fallback por faixa de IPs
-    ip_from_range = _find_ip_by_range(mac_address, expected_schema)
-    if ip_from_range:
-        _save_last_known_ip(ip_from_range)
-        return ip_from_range
-    
-    print("Nenhum IP válido encontrado para a NodeMCU.")
+
+    last_ips = load_last_known_ips()
+
+    # 1️⃣ IP salvo para esta Node
+    if nodemcu_name and nodemcu_name in last_ips:
+        ip = last_ips[nodemcu_name]
+        print(f"Tentando IP salvo para {nodemcu_name}: {ip}")
+        if _validate_and_test_ip(ip, expected_schema, mac_address):
+            return ip
+
+    # 2️⃣ Busca via ARP
+    ip = _find_ip_from_arp(mac_address, expected_schema)
+    if ip:
+        _update_cache(last_ips, nodemcu_name, ip)
+        return ip
+
+    # 3️⃣ Busca por faixa de IP
+    ip = _find_ip_by_range(mac_address, expected_schema)
+    if ip:
+        _update_cache(last_ips, nodemcu_name, ip)
+        return ip
+
     return None
+
+def _update_cache(last_ips, nodemcu_name, ip):
+    if not nodemcu_name:
+        return
+
+    # Remove IP duplicado de outras nodes
+    for k, v in list(last_ips.items()):
+        if v == ip and k != nodemcu_name:
+            del last_ips[k]
+
+    last_ips[nodemcu_name] = ip
+    save_last_known_ips(last_ips)
